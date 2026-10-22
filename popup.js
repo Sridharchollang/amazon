@@ -108,13 +108,17 @@ document.getElementById("fillBtn").addEventListener("click", async () => {
   await save();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return status("No active tab.");
-  try {
-    const response = await chrome.tabs.sendMessage(tab.id, { action: "fill", profile: current() });
+
+  chrome.tabs.sendMessage(tab.id, { action: "fill", profile: current() }, response => {
+    const error = chrome.runtime.lastError;
+    if (error) {
+      console.error(error.message);
+      status("Open the TTD booking page and reload it, then try again.");
+      return;
+    }
+
     status(response?.message || "Fill completed.");
-  } catch (error) {
-    console.error(error);
-    status("Open the TTD booking page and reload it, then try again.");
-  }
+  });
 });
 
 load().catch(error => { console.error(error); status("Could not load local profiles."); });

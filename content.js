@@ -96,22 +96,6 @@
     element.value = stringValue;
   };
 
-  const setValue = (element, value) => {
-    if (!element || value === undefined || value === null || value === "") return false;
-    const normalized = String(value).trim();
-    if (!normalized) return false;
-
-    nativeSetter(element, normalized);
-
-    ["input", "change", "blur"].forEach(type => {
-      try {
-        element.dispatchEvent(new Event(type, { bubbles: true, composed: true }));
-      } catch {}
-    });
-
-    return true;
-  };
-
   const optionMatches = (element, value) => {
     const wanted = normalize(value);
     if (!element) return false;
@@ -128,6 +112,47 @@
       optionValue.includes(wanted) ||
       title.includes(wanted)
     );
+  };
+
+  const fieldAcceptsValue = (element, value) => {
+    if (!element || value === undefined || value === null) return false;
+
+    const normalized = String(value).trim();
+    if (!normalized) return false;
+
+    const tag = element.tagName?.toLowerCase();
+    const inputType = (element.type || "").toLowerCase();
+
+    if (tag === "select") {
+      return [...(element.options || [])].some(option => optionMatches(option, normalized));
+    }
+
+    if (inputType === "number" || inputType === "range") {
+      return !Number.isNaN(Number(normalized));
+    }
+
+    if (inputType === "date" || inputType === "month" || inputType === "datetime-local") {
+      return !Number.isNaN(Date.parse(normalized));
+    }
+
+    return true;
+  };
+
+  const setValue = (element, value) => {
+    if (!element || value === undefined || value === null || value === "") return false;
+    const normalized = String(value).trim();
+    if (!normalized) return false;
+    if (!fieldAcceptsValue(element, normalized)) return false;
+
+    nativeSetter(element, normalized);
+
+    ["input", "change", "blur"].forEach(type => {
+      try {
+        element.dispatchEvent(new Event(type, { bubbles: true, composed: true }));
+      } catch {}
+    });
+
+    return true;
   };
 
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -174,6 +199,9 @@
     if (element instanceof HTMLSelectElement || element.tagName?.toLowerCase() === "select") {
       return setNativeSelect(element, value);
     }
+
+    const normalized = String(value).trim();
+    if (!normalized) return false;
 
     try {
       element.focus?.();
